@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cargoweek - Defensa Logística</title>
+<style>
+:root{
+  --bg:#071525;--panel:#0c2744;--panel2:#0a1e35;--line:#234c72;
+  --text:#f4f8fc;--muted:#9fb3c7;--orange:#ff9a2e;--cyan:#4dd6ff;
+  --good:#47d18d;--bad:#ff6666;
+}
+*{box-sizing:border-box}
+body{margin:0;background:linear-gradient(180deg,#06111f,#071a2f);font-family:Arial,Helvetica,sans-serif;color:var(--text)}
+.wrap{max-width:1100px;margin:auto;padding:12px}
+.top{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
+.brand{font-weight:950;letter-spacing:.12em}
+.hud{display:flex;gap:8px;flex-wrap:wrap}
+.pill{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 10px;font-weight:900}
+.card{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);border-radius:20px;padding:18px}
+h1{margin:0 0 8px;font-size:clamp(2rem,6vw,3.4rem)}
+p{line-height:1.45}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.field{display:flex;flex-direction:column;gap:6px}
+input,select,button{font:inherit}
+input,select{padding:13px;border-radius:12px;border:1px solid #315679;background:#07182c;color:#fff}
+button{border:0;border-radius:12px;padding:11px 13px;font-weight:900;cursor:pointer}
+.primary{background:var(--orange);color:#152033}
+.secondary{background:#16395f;color:#fff}
+.hidden{display:none!important}
+.bad{color:var(--bad);font-weight:900}
+.good{color:var(--good);font-weight:900}
+
+.units{display:flex;gap:8px;overflow:auto;padding-bottom:12px}
+.unitbtn{min-width:165px;background:#0a1d34;color:#fff;border:2px solid #21496e;text-align:left}
+.unitbtn.active{border-color:var(--orange);background:#132b46}
+.unitbtn small{display:block;color:var(--muted);margin-top:4px}
+
+.wavebar{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:10px}
+.wave{font-weight:950;color:var(--orange);letter-spacing:.1em}
+.boardwrap{overflow:auto;border:1px solid var(--line);border-radius:16px;background:#08192c}
+.board{min-width:720px}
+.lane{display:grid;grid-template-columns:repeat(8,1fr);min-height:92px;border-bottom:1px solid #1d4161}
+.lane:last-child{border-bottom:0}
+.cell{position:relative;display:flex;align-items:center;justify-content:center;border-right:1px dashed #21435f;background:rgba(255,255,255,.01);min-height:92px}
+.cell:first-child{background:rgba(77,214,255,.07)}
+.cell:last-child{background:rgba(255,102,102,.06)}
+.unit,.enemy{position:absolute;inset:8px;display:flex;align-items:center;justify-content:center}
+.unit{z-index:2}
+.enemy{z-index:3}
+.icon{font-size:2.15rem;filter:drop-shadow(0 5px 4px rgba(0,0,0,.35))}
+.hp{position:absolute;left:7px;right:7px;bottom:5px;height:5px;background:#14314d;border-radius:999px;overflow:hidden}
+.hp span{display:block;height:100%;background:var(--good)}
+.enemy .hp span{background:var(--bad)}
+.hit{animation:hit .2s ease}
+@keyframes hit{50%{background:rgba(255,102,102,.2)}}
+.projectile{
+position:absolute;z-index:20;font-size:1.45rem;pointer-events:none;
+transition:transform .32s linear,opacity .32s linear;
+filter:drop-shadow(0 5px 4px rgba(0,0,0,.35))
+}
+.impact{position:absolute;z-index:25;font-size:1.5rem;pointer-events:none;animation:impact .35s ease forwards}
+@keyframes impact{from{transform:scale(.5);opacity:1}to{transform:scale(1.8);opacity:0}}
+.spawn{animation:spawn .35s ease}
+@keyframes spawn{from{transform:scale(.45);opacity:0}to{transform:scale(1);opacity:1}}
+.msg{min-height:24px;margin-top:10px;font-weight:900;color:#d5eaff}
+.resultscore{font-size:clamp(2.6rem,9vw,5rem);font-weight:950;color:var(--orange);margin:8px 0}
+.legend{color:var(--muted);font-size:.9rem;margin-bottom:8px}
+@media(max-width:650px){.grid2{grid-template-columns:1fr}.card{padding:13px}.wrap{padding:8px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="brand">CARGOWEEK // DEFENSA LOGÍSTICA</div>
+    <div class="hud hidden" id="hud">
+      <div class="pill">⏱ <span id="time">05:00</span></div>
+      <div class="pill">⚡ <span id="energy">150</span></div>
+      <div class="pill">🏆 <span id="score">0</span></div>
+      <div class="pill">❤️ <span id="lives">5</span></div>
+    </div>
+  </div>
+
+  <section class="card" id="start">
+    <p style="color:var(--cyan);font-weight:950;letter-spacing:.12em">ALERTA DE OPERACIONES</p>
+    <h1>Defensa Logística</h1>
+    <p>Protege el centro de distribución. Coloca defensas en los carriles y detén los problemas antes de que lleguen al almacén.</p>
+    <div class="grid2">
+      <label class="field">Nombre<input id="name" placeholder="Tu nombre"></label>
+      <label class="field">Sucursal
+        <select id="branch">
+          <option value="">Selecciona</option>
+          <option>Estado de México</option><option>Buenos Aires</option><option>Victoria</option>
+          <option>Nuevo Repueblo</option><option>Leamington</option><option>Tampico</option>
+          <option>Ontario</option><option>Detroit</option><option>San Antonio</option><option>Laredo</option>
+        </select>
+      </label>
+    </div>
+    <p id="startMsg" class="bad"></p>
+    <button class="primary" id="startBtn">INICIAR PARTIDA</button>
+  </section>
+
+  <section class="card hidden" id="game">
+    <div class="wavebar">
+      <div class="wave" id="wave">OLEADA 1</div>
+      <div>Almacén ← &nbsp;&nbsp; Problemas →</div>
+    </div>
+
+    <div class="units">
+      <button class="unitbtn active" data-unit="truck">🚚 CAMIÓN<small>40 ⚡ · avienta cajas 📦</small></button>
+      <button class="unitbtn" data-unit="cold">❄️ REFRIGERACIÓN<small>55 ⚡ · cajas frías 🧊📦</small></button>
+      <button class="unitbtn" data-unit="wall">🛡️ CONTENEDOR<small>35 ⚡ · defensa alta</small></button>
+      <button class="unitbtn" data-unit="express">⚡ EXPRESS<small>70 ⚡ · cajas rápidas 📦</small></button>
+    </div>
+
+    <div class="legend">Toca una unidad y después una celda vacía. Los enemigos aparecen por la derecha.</div>
+    <div class="boardwrap"><div class="board" id="board"></div></div>
+    <div class="msg" id="msg">Prepárate…</div>
+  </section>
+
+  <section class="card hidden" id="end">
+    <p style="color:var(--cyan);font-weight:950;letter-spacing:.12em">PARTIDA TERMINADA</p>
+    <h1 id="endTitle">¡Carga protegida!</h1>
+    <div class="resultscore" id="endScore">0 PTS</div>
+    <p id="summary"></p>
+    <button class="secondary" id="restart">JUGAR DE NUEVO</button>
+  </section>
+</div>
+
+<script>
+(() => {
+const $ = s => document.querySelector(s);
+
+const ROWS = 5;
+const COLS = 8;
+const TOTAL_SECONDS = 300;
+
+const unitTypes = {
+  truck:   {icon:"🚚", cost:40, hp:120, damage:18, cooldown:2, slow:false, projectile:"📦"},
+  cold:    {icon:"❄️", cost:55, hp:95,  damage:10, cooldown:3, slow:true, projectile:"🧊📦"},
+  wall:    {icon:"🛡️", cost:35, hp:260, damage:0,  cooldown:99, slow:false, projectile:""},
+  express: {icon:"⚡", cost:70, hp:85,  damage:14, cooldown:1, slow:false, projectile:"📦"}
+};
+
+const enemyTypes = [
+  {icon:"⏰",name:"Retraso",hp:70,damage:18,score:100},
+  {icon:"📦",name:"Daño",hp:90,damage:20,score:125},
+  {icon:"🚧",name:"Ruta bloqueada",hp:120,damage:24,score:170},
+  {icon:"🛃",name:"Aduana",hp:150,damage:28,score:220},
+  {icon:"🌧️",name:"Clima",hp:110,damage:22,score:180}
+];
+
+let selected = "truck";
+let energy = 150;
+let score = 0;
+let lives = 5;
+let seconds = TOTAL_SECONDS;
+let wave = 1;
+let kills = 0;
+let running = false;
+let tickCount = 0;
+
+let units = [];
+let enemies = [];
+
+let mainLoop = null;
+let secondLoop = null;
+let spawnLoop = null;
+
+function makeBoard(){
+  const board = $("#board");
+  board.innerHTML = "";
+  for(let r=0;r<ROWS;r++){
+    const lane = document.createElement("div");
+    lane.className = "lane";
+    lane.dataset.row = r;
+    for(let c=0;c<COLS;c++){
+      const cell = document.createElement("div");
+      cell.className = "cell";
+      cell.dataset.row = r;
+      cell.dataset.col = c;
+      cell.addEventListener("click",()=>placeUnit(r,c));
+      lane.appendChild(cell);
+    }
+    board.appendChild(lane);
+  }
+  render();
+}
+
+function getCell(r,c){
+  return document.querySelector(`.cell[data-row="${r}"][data-col="${c}"]`);
+}
+
+function placeUnit(r,c){
+  if(!running) return;
+  if(c===COLS-1){ showMsg("No puedes colocar defensas en la zona de entrada."); return; }
+  if(units.some(u=>u.row===r && u.col===c)){ showMsg("Esa celda ya está ocupada."); return; }
+
+  const type = unitTypes[selected];
+  if(energy < type.cost){ showMsg("⚠ No tienes suficiente energía."); return; }
+
+  energy -= type.cost;
+  units.push({
+    row:r,col:c,type:selected,
+    hp:type.hp,maxHp:type.hp,cool:0
+  });
+  showMsg(`${type.icon} Unidad colocada`);
+  updateHud();
+  render();
+}
+
+function spawnEnemy(){
+  if(!running) return;
+
+  const row = Math.floor(Math.random()*ROWS);
+  const maxType = Math.min(enemyTypes.length,1+Math.floor((TOTAL_SECONDS-seconds)/55));
+  const t = enemyTypes[Math.floor(Math.random()*maxType)];
+
+  enemies.push({
+    row:row,
+    col:COLS-1,
+    icon:t.icon,
+    name:t.name,
+    hp:t.hp,
+    maxHp:t.hp,
+    damage:t.damage,
+    score:t.score,
+    slowed:0
+  });
+
+  showMsg(`🚨 ${t.name} entrando por carril ${row+1}`);
+  render();
+}
+
+
+function lanzarCaja(unit, enemy, projectileIcon){
+  const board = $("#board");
+  const from = getCell(unit.row,unit.col);
+  const to = getCell(enemy.row,enemy.col);
+  if(!board || !from || !to) return;
+
+  const br = board.getBoundingClientRect();
+  const fr = from.getBoundingClientRect();
+  const tr = to.getBoundingClientRect();
+
+  const p = document.createElement("div");
+  p.className = "projectile";
+  p.textContent = projectileIcon || "📦";
+  p.style.left = (fr.left-br.left+fr.width/2-12)+"px";
+  p.style.top = (fr.top-br.top+fr.height/2-14)+"px";
+  board.appendChild(p);
+
+  const dx = (tr.left+tr.width/2) - (fr.left+fr.width/2);
+  requestAnimationFrame(()=>{
+    p.style.transform = `translateX(${dx}px) rotate(360deg)`;
+  });
+
+  setTimeout(()=>{
+    const impact = document.createElement("div");
+    impact.className = "impact";
+    impact.textContent = "💥";
+    impact.style.left = (tr.left-br.left+tr.width/2-12)+"px";
+    impact.style.top = (tr.top-br.top+tr.height/2-15)+"px";
+    board.appendChild(impact);
+    p.remove();
+    setTimeout(()=>impact.remove(),360);
+  },320);
+}
+
+function gameTick(){
+  if(!running) return;
+  tickCount++;
+
+  // Ataques de las unidades.
+  for(const u of units){
+    const type = unitTypes[u.type];
+    u.cool++;
+
+    if(type.damage===0 || u.cool<type.cooldown) continue;
+
+    const targets = enemies
+      .filter(e=>e.row===u.row && e.col>u.col && e.hp>0)
+      .sort((a,b)=>a.col-b.col);
+
+    if(targets.length){
+      const e = targets[0];
+      lanzarCaja(u,e,type.projectile);
+      e.hp -= type.damage;
+      if(type.slow) e.slowed = 2;
+      u.cool = 0;
+
+      const cell = getCell(e.row,e.col);
+      if(cell){
+        cell.classList.add("hit");
+        setTimeout(()=>cell.classList.remove("hit"),180);
+      }
+    }
+  }
+
+  // Eliminar derrotados.
+  const dead = enemies.filter(e=>e.hp<=0);
+  if(dead.length){
+    for(const e of dead){
+      score += e.score;
+      energy = Math.min(300,energy+20);
+      kills++;
+    }
+    enemies = enemies.filter(e=>e.hp>0);
+  }
+
+  // Mover / atacar.
+  for(const e of [...enemies]){
+    if(e.slowed>0){
+      e.slowed--;
+      if(tickCount%2===0) continue;
+    }
+
+    const target = units.find(u=>u.row===e.row && u.col===e.col-1);
+
+    if(target){
+      target.hp -= e.damage;
+      if(target.hp<=0){
+        units = units.filter(u=>u!==target);
+      }
+    }else{
+      e.col--;
+    }
+
+    if(e.col<0){
+      lives--;
+      enemies = enemies.filter(x=>x!==e);
+      showMsg("💥 Un problema llegó al almacén.");
+      if(lives<=0){
+        finish(false);
+        return;
+      }
+    }
+  }
+
+  energy = Math.min(300,energy+2);
+  updateHud();
+  render();
+}
+
+function render(){
+  document.querySelectorAll(".cell").forEach(cell=>cell.innerHTML="");
+
+  for(const u of units){
+    const cell = getCell(u.row,u.col);
+    if(!cell) continue;
+    const type = unitTypes[u.type];
+    const box = document.createElement("div");
+    box.className = "unit";
+    box.innerHTML = `
+      <div class="icon">${type.icon}</div>
+      <div class="hp"><span style="width:${Math.max(0,u.hp/u.maxHp*100)}%"></span></div>`;
+    cell.appendChild(box);
+  }
+
+  for(const e of enemies){
+    const cell = getCell(e.row,e.col);
+    if(!cell) continue;
+    const box = document.createElement("div");
+    box.className = "enemy spawn";
+    box.innerHTML = `
+      <div class="icon">${e.icon}</div>
+      <div class="hp"><span style="width:${Math.max(0,e.hp/e.maxHp*100)}%"></span></div>`;
+    cell.appendChild(box);
+  }
+}
+
+function secondTick(){
+  if(!running) return;
+  seconds--;
+
+  const newWave = 1 + Math.floor((TOTAL_SECONDS-seconds)/60);
+  if(newWave!==wave){
+    wave = newWave;
+    showMsg(`⚠ OLEADA ${wave}`);
+  }
+
+  if(seconds<=0){
+    finish(true);
+    return;
+  }
+  updateHud();
+}
+
+function updateHud(){
+  $("#energy").textContent = Math.floor(energy);
+  $("#score").textContent = score;
+  $("#lives").textContent = lives;
+  $("#wave").textContent = "OLEADA "+wave;
+  const m = Math.floor(seconds/60);
+  const s = seconds%60;
+  $("#time").textContent = String(m).padStart(2,"0")+":"+String(s).padStart(2,"0");
+}
+
+function showMsg(t){
+  $("#msg").textContent = t;
+}
+
+function startGame(){
+  const name = $("#name").value.trim();
+  const branch = $("#branch").value;
+  if(!name || !branch){
+    $("#startMsg").textContent = "Escribe tu nombre y selecciona tu sucursal.";
+    return;
+  }
+
+  $("#start").classList.add("hidden");
+  $("#game").classList.remove("hidden");
+  $("#hud").classList.remove("hidden");
+
+  makeBoard();
+  running = true;
+  updateHud();
+
+  showMsg("3… 2… 1… ¡DEFENDER!");
+
+  setTimeout(()=>{
+    if(!running) return;
+    spawnEnemy();
+    mainLoop = setInterval(gameTick,850);
+    secondLoop = setInterval(secondTick,1000);
+    spawnLoop = setInterval(()=>{
+      spawnEnemy();
+      if(seconds<150 && Math.random()<0.35) spawnEnemy();
+      if(seconds<60 && Math.random()<0.45) spawnEnemy();
+    },2600);
+  },1000);
+}
+
+
+function guardarResultado() {
+  const nombre = $("#name").value.trim();
+  const sucursal = $("#branch").value;
+  const used = TOTAL_SECONDS - seconds;
+  const tiempo =
+    String(Math.floor(used/60)).padStart(2,"0") + ":" +
+    String(used%60).padStart(2,"0");
+
+  const datos = {
+    nombre: nombre,
+    sucursal: sucursal,
+    puntaje: score,
+    enemigos: kills,
+    vidas: Math.max(0,lives),
+    oleada: wave,
+    tiempo: tiempo
+  };
+
+  fetch("https://script.google.com/macros/s/AKfycbxrMqAEHQbCUY4R6ndy55wE5igicUKTNDRcDAKZoCv--eiMti1f_Rywgoo8PCLKDIMxbg/exec", {
+    method: "POST",
+    mode: "no-cors",
+    headers: {
+      "Content-Type": "text/plain"
+    },
+    body: JSON.stringify(datos)
+  }).catch(function(error) {
+    console.log("Error al guardar resultado:", error);
+  });
+}
+
+function finish(survived){
+  if(!running) return;
+  running = false;
+  clearInterval(mainLoop);
+  clearInterval(secondLoop);
+  clearInterval(spawnLoop);
+
+  $("#game").classList.add("hidden");
+  $("#end").classList.remove("hidden");
+  $("#endTitle").textContent = survived ? "🏁 ¡Carga protegida!" : "🚨 El almacén fue rebasado";
+  $("#endScore").textContent = score+" PTS";
+
+  guardarResultado();
+
+  const used = TOTAL_SECONDS-seconds;
+  $("#summary").textContent =
+    `Problemas resueltos: ${kills} · Vidas restantes: ${Math.max(0,lives)} · `+
+    `Oleada alcanzada: ${wave} · Tiempo jugado: `+
+    `${String(Math.floor(used/60)).padStart(2,"0")}:${String(used%60).padStart(2,"0")}`;
+}
+
+document.querySelectorAll(".unitbtn").forEach(btn=>{
+  btn.addEventListener("click",()=>{
+    document.querySelectorAll(".unitbtn").forEach(x=>x.classList.remove("active"));
+    btn.classList.add("active");
+    selected = btn.dataset.unit;
+  });
+});
+
+$("#startBtn").addEventListener("click",startGame);
+$("#restart").addEventListener("click",()=>location.reload());
+})();
+</script>
+</body>
+</html>
